@@ -10,7 +10,7 @@ class BaseJavaClass:
     Base class for Java Classes.
     """
     attrs = ['name', 'modifiers', 'fields', 'constructors', 'methods', 'extends', 'implements', 'relations', 'inner_classes', 'context']
-    def __init__(self, declaration: ClassDeclaration, context: JavaClassContext | None = None, relations:list[str] = []):
+    def __init__(self, declaration: ClassDeclaration, context: JavaClassContext | None = None, relations:list[str] | None = None):
         self.name = declaration.name # type: ignore
         self.modifiers = declaration.modifiers # type: ignore
         self._parse_fields(declaration.fields)
@@ -18,7 +18,7 @@ class BaseJavaClass:
         self._parse_methods(declaration.methods) 
         self._parse_extends(declaration.extends) # type: ignore
         self._parse_implements(declaration.implements) # type: ignore
-        self.relations : list[str] = relations
+        self.relations : list[str] = relations.copy() if relations else []
         self._parse_inner_classes(declaration.body) # type: ignore
         self.context = context
 
@@ -105,9 +105,7 @@ class BaseJavaClass:
     def __parse_association(self):
         if self.context is None:
             return
-        types_set: set[str] = set()
-        for field in self.fields:
-            types_set.add(field.type)
+        types_set: set[str] = set(map(lambda x: x.type, self.fields))
         for t in types_set:
             class_path = self.context.get_full_class_path(t)
             if class_path is not None:
@@ -115,7 +113,7 @@ class BaseJavaClass:
     
     def parse_relationships(self):
         self.__parse_association()
-        ignore = set(map(lambda x: x.name, self.fields))
+        ignore = set(map(lambda x: x.type, self.fields))
         ignore.add(self.name)
         if getattr(self, 'constructors', None):
             for constructor in self.constructors:
@@ -127,12 +125,13 @@ class BaseJavaClass:
 
     @property
     def relations_list(self):
-        dependencies = []
+        dependencies = set()
         if getattr(self, 'constructors', None):
             for constructor in self.constructors:
-                dependencies.extend(constructor.dependencies_list)
+                dependencies.update(constructor.dependencies_list)
         for method in self.methods:
-            dependencies.extend(method.dependencies_list)
+            dependencies.update(method.dependencies_list)
+        dependencies = set(dependencies)
         # 给每个result加上self.name:前缀
         result = list(map(lambda x: f"{self.name}::{x}", dependencies))
         for relation in self.relations:
@@ -168,13 +167,13 @@ class JavaClass(BaseJavaClass):
 
 class JavaInterface(BaseJavaClass):
     attrs = ['name', 'modifiers', 'fields', 'methods', 'extends', 'relations', 'inner_classes', 'context']
-    def __init__(self, declaration: InterfaceDeclaration, context: JavaClassContext | None = None, relations:list[str] = []):
+    def __init__(self, declaration: InterfaceDeclaration, context: JavaClassContext | None = None, relations:list[str] | None = None):
         self.name = declaration.name # type: ignore
         self.modifiers = declaration.modifiers # type: ignore
         self._parse_fields(declaration.fields)
         self._parse_methods(declaration.methods)
         self._parse_extends(declaration.extends) # type: ignore
-        self.relations : list[str] = relations
+        self.relations : list[str] = relations.copy() if relations else []
         self._parse_inner_classes(declaration.body) # type: ignore
         self.context = context
 
@@ -196,14 +195,14 @@ class JavaInterface(BaseJavaClass):
 
 class JavaEnum(BaseJavaClass):
     attrs = ['name', 'modifiers', 'constants', 'constructors', 'methods', 'implements', 'relations', 'inner_classes', 'context']
-    def __init__(self, declaration: EnumDeclaration, context: JavaClassContext | None = None, relations:list[str] = []):
+    def __init__(self, declaration: EnumDeclaration, context: JavaClassContext | None = None, relations:list[str] | None = None):
         self.name = declaration.name # type: ignore
         self.modifiers = declaration.modifiers # type: ignore
         self._parse_constants(declaration.body) # type: ignore
         self._parse_constructors(declaration.constructors)
         self._parse_methods(declaration.methods)
         self._parse_implements(declaration.implements) # type: ignore
-        self.relations : list[str] = relations
+        self.relations : list[str] = relations.copy() if relations else []
         self._parse_inner_classes(declaration.body) # type: ignore
         self.context = context
 
