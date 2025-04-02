@@ -134,7 +134,7 @@ class BaseJavaClass:
         for method in self.methods:
             dependencies.extend(method.dependencies_list)
         # 给每个result加上self.name:前缀
-        result = list(map(lambda x: f"{self.name}:{x}", dependencies))
+        result = list(map(lambda x: f"{self.name}::{x}", dependencies))
         for relation in self.relations:
             result.append(f"{self.name} {UMLRelationship.ASSOCIATE} {relation}")
         
