@@ -1,3 +1,7 @@
+import os, sys
+dir_path = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(dir_path)
+
 from javapackage import JavaPackage, JavaClassContext
 
 import javalang
@@ -47,6 +51,22 @@ class JavaAnalyzer:
         for package in self.__packages.values():
             print(str(package))
     
+    @property
+    def pakcages_plantuml(self):
+        plantuml = ""
+        for package in self.__packages.values():
+            plantuml += str(package)
+        return plantuml
+
+    @property
+    def relations_plantuml(self):
+        plantuml = ""
+        for package in self.__packages.values():
+            relations = package.relations_list
+            for relation in relations:
+                plantuml += str(relation) + "\n"
+        return plantuml
+
     def analyze_relations(self):
         for package in self.__packages.values():
             package.parse_relations()
@@ -56,3 +76,30 @@ class JavaAnalyzer:
             relations = package.relations_list
             for relation in relations:
                 print(relation)
+
+class JavaProjectAnalyZer:
+    def __init__(self):
+        self.__analyzer = JavaAnalyzer()
+
+    def get_analyzer(self):
+        return self.__analyzer
+    
+    def analyze_directory(self, directory_path : str):
+        if os.path.isdir(directory_path):
+            for root, dirs, files in os.walk(directory_path):
+                for file in files:
+                    if file.endswith(".java"):
+                        self.__analyzer.analyze_file(os.path.join(root, file))
+        else:
+            print("Not a valid directory")
+    
+    def analyze_relations(self):
+        self.__analyzer.analyze_relations()
+
+    @property
+    def pakcages_plantuml(self):
+        return self.__analyzer.pakcages_plantuml
+
+    @property
+    def relations_plantuml(self):
+        return self.__analyzer.relations_plantuml
