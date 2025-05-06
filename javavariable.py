@@ -1,5 +1,5 @@
 import inspect
-from javatype import JavaType
+from javatype import JavaType, ReferenceType
 from java2plantumltool import Java2PlantUMLTool
 from javalang.tree import VariableDeclaration, FieldDeclaration, FormalParameter
 class JavaField:
@@ -22,20 +22,22 @@ class JavaField:
         return super().__new__(cls)
     
 
-    def __init__(self, type: str, modifiers: set[str], documentation: str, declaration: VariableDeclaration):
+    def __init__(self, origin_type: ReferenceType, type: str, modifiers: set[str], documentation: str, declaration: VariableDeclaration):
         self.name = declaration.name #type: ignore
         self.type = type 
         self.documentation = documentation
         self.modifiers = modifiers
+        self.dimensions = declaration.dimensions #type: ignore
+        self.origin_type = origin_type
 
     def __str__(self):
-        return f"{Java2PlantUMLTool.print_modifiers(self.modifiers)}{self.type} {self.name}"
+        return f"{Java2PlantUMLTool.print_modifiers(self.modifiers)}{self.type}{'[]' * self.dimensions.__len__()} {self.name}"
 
     @staticmethod
     def resolve_fields(declaration: FieldDeclaration):
         type = JavaType.resolve_type(declaration.type) #type: ignore
         modifiers = declaration.modifiers #type: ignore
-        return [JavaField(type, modifiers, declaration.documentation, declarator) for declarator in declaration.declarators] #type: ignore
+        return [JavaField(declaration.type, type, modifiers, declaration.documentation, declarator) for declarator in declaration.declarators] #type: ignore
 
 
 class JavaFormalParameter:
@@ -43,8 +45,10 @@ class JavaFormalParameter:
     def __init__(self, param: FormalParameter):
         self.name = param.name #type: ignore
         self.modifiers = param.modifiers #type: ignore
-        self.type = JavaType.resolve_type(param.type) #type: ignore
+        self.origin_type = param.type #type: ignore
+        self.type = JavaType.resolve_type(param.type) #type: ignore  
+        self.dimensions = param.type.dimensions #type: ignore
         self.varargs = param.varargs #type: ignore
     
     def __str__(self):
-        return f"{Java2PlantUMLTool.print_modifiers(self.modifiers)}{self.type} {self.name}{'...' if self.varargs else ''}"
+        return f"{Java2PlantUMLTool.print_modifiers(self.modifiers)}{self.type}{'[]'*self.dimensions.__len__()} {self.name}{'...' if self.varargs else ''}"

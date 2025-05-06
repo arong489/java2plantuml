@@ -21,9 +21,10 @@ class BaseJavaClass:
         self.relations : list[str] = relations.copy() if relations else []
         self._parse_inner_classes(declaration.body) # type: ignore
         self.context = context
+        self._active = False
 
     def _parse_fields(self, declaration: list[FieldDeclaration]):
-        self.fields = []
+        self.fields:list[JavaField] = []
         for field in declaration:
             self.fields.extend(JavaField.resolve_fields(field))
     
@@ -33,7 +34,7 @@ class BaseJavaClass:
             self.constructors.append(JavaConstructor(constructor))
 
     def _parse_methods(self, declaration: list[MethodDeclaration]):
-        self.methods = []
+        self.methods: list[JavaMethod] = []
         for method in declaration:
             self.methods.append(JavaMethod(method))
 
@@ -104,16 +105,21 @@ class BaseJavaClass:
     
     def __parse_association(self):
         if self.context is None:
-            return
-        types_set: set[str] = set(map(lambda x: x.type, self.fields))
+            return set()
+        types_set: set[str] = set()
+        for field in self.fields:
+            reference_types = JavaType.resolve_reference_type(field.origin_type)
+            for t in reference_types:
+                types_set.add(t)
         for t in types_set:
             class_path = self.context.get_full_class_path(t)
             if class_path is not None:
                 self.relations.append(class_path)
+        return types_set
     
     def parse_relationships(self):
-        self.__parse_association()
-        ignore = set(map(lambda x: x.type, self.fields))
+        ignore = self.__parse_association()
+        # ignore = set(map(lambda x: x.type, self.fields))
         ignore.add(self.name)
         if getattr(self, 'constructors', None):
             for constructor in self.constructors:
@@ -122,6 +128,15 @@ class BaseJavaClass:
             method.parse_dependencies(self.context, ignore)
         for inner_class in self.inner_classes:
             inner_class.parse_relationships()
+
+    @property
+    def active(self):
+        return self._active
+
+    @active.setter
+    def active(self, value: bool):
+        self._active = value
+        return value
 
     @property
     def relations_list(self):
@@ -176,6 +191,7 @@ class JavaInterface(BaseJavaClass):
         self.relations : list[str] = relations.copy() if relations else []
         self._parse_inner_classes(declaration.body) # type: ignore
         self.context = context
+        self.active = False
 
     def __str__(self):
         # output = f"{Java2PlantUMLTool.print_modifiers(self.modifiers, True)}interface {self.name}" + '{\n'
@@ -205,6 +221,7 @@ class JavaEnum(BaseJavaClass):
         self.relations : list[str] = relations.copy() if relations else []
         self._parse_inner_classes(declaration.body) # type: ignore
         self.context = context
+        self.active = False
 
     def _parse_constants(self, body: EnumBody):
         self.constants = []
